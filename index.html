@@ -57,11 +57,19 @@
       </svg>
     );
 
+    const Info = () => (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 16v-4"/>
+        <path d="M12 8h.01"/>
+      </svg>
+    );
+
     function AirtelAICommerce() {
       const [showSettings, setShowSettings] = useState(true);
       const [apiKey, setApiKey] = useState('');
       const [serverName, setServerName] = useState('UPI');
-      const [serverUrl, setServerUrl] = useState('https://f05d2d98b621.ngrok-free.app');
+      const [serverUrl, setServerUrl] = useState('https://b304dec16af7.ngrok-free.app');
       const [mcpServers, setMcpServers] = useState([]);
       const [messages, setMessages] = useState([
         {
@@ -76,7 +84,7 @@
       const [availableTools, setAvailableTools] = useState([]);
       const [isConnecting, setIsConnecting] = useState(false);
       const [debugLogs, setDebugLogs] = useState([]);
-      const [showDebug, setShowDebug] = useState(true);
+      const [showDebug, setShowDebug] = useState(false);
       const messagesEndRef = useRef(null);
 
       const scrollToBottom = () => {
@@ -104,17 +112,27 @@
           
           // Step 1: Get session endpoint
           addDebugLog('INFO', 'Step 1: Fetching SSE endpoint...');
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+          
           const sseResponse = await fetch(`${url}/sse`, {
             method: 'GET',
             headers: {
               'Accept': 'text/event-stream',
               'ngrok-skip-browser-warning': 'true'
-            }
-          });
+            },
+            signal: controller.signal
+          }).finally(() => clearTimeout(timeoutId));
 
           addDebugLog('INFO', `SSE Response status: ${sseResponse.status}`, {
             ok: sseResponse.ok,
-            statusText: sseResponse.statusText
+            statusText: sseResponse.statusText,
+            headers: {
+              'content-type': sseResponse.headers.get('content-type'),
+              'content-length': sseResponse.headers.get('content-length'),
+              'transfer-encoding': sseResponse.headers.get('transfer-encoding')
+            }
           });
 
           if (!sseResponse.ok) {
@@ -123,43 +141,45 @@
             throw new Error(`SSE connection failed: ${sseResponse.status} - ${errorText}`);
           }
 
+          // Check if response is actually SSE
+          const contentType = sseResponse.headers.get('content-type');
+          if (!contentType?.includes('text/event-stream')) {
+            addDebugLog('WARN', `Server returned ${contentType} instead of text/event-stream`);
+          }
+
           const text = await sseResponse.text();
           addDebugLog('INFO', 'SSE Response body received', { 
             bodyLength: text.length, 
-            fullText: text 
+            fullText: text,
+            isEmpty: text.length === 0,
+            preview: text.substring(0, 500)
           });
+
+          if (text.length === 0) {
+            throw new Error('Server returned empty response. The SSE endpoint must send data immediately.');
+          }
+          addDebugLog('INFO', 'SSE Response body received', { bodyLength: text.length, preview: text.substring(0, 200) });
           
-          // Parse SSE format properly
           const lines = text.split('\n');
           let sessionEndpoint = '';
 
           for (const line of lines) {
-            const trimmedLine = line.trim();
-            addDebugLog('DEBUG', `Processing line: "${trimmedLine}"`);
-            
-            if (trimmedLine.startsWith('data:')) {
-              // Extract everything after "data:" and trim whitespace
-              sessionEndpoint = trimmedLine.substring(5).trimStart();
-              addDebugLog('SUCCESS', `Found session endpoint: "${sessionEndpoint}"`);
+            if (line.startsWith('data:')) {
+              sessionEndpoint = line.substring(5).trim();
               break;
             }
           }
 
           if (!sessionEndpoint) {
-            addDebugLog('ERROR', 'No session endpoint in SSE response', { 
-              fullResponse: text,
-              lines: lines 
-            });
+            addDebugLog('ERROR', 'No session endpoint in SSE response', { fullResponse: text });
             throw new Error('No session endpoint received from server');
           }
 
           addDebugLog('SUCCESS', `Session endpoint obtained: ${sessionEndpoint}`);
 
           // Step 2: Initialize connection
-          const fullSessionUrl = `${url}${sessionEndpoint}`;
-          addDebugLog('INFO', `Step 2: Initializing MCP connection at ${fullSessionUrl}`);
-          
-          const initResponse = await fetch(fullSessionUrl, {
+          addDebugLog('INFO', 'Step 2: Initializing MCP connection...');
+          const initResponse = await fetch(`${url}${sessionEndpoint}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -191,7 +211,7 @@
 
           // Step 3: List available tools
           addDebugLog('INFO', 'Step 3: Fetching available tools...');
-          const toolsResponse = await fetch(fullSessionUrl, {
+          const toolsResponse = await fetch(`${url}${sessionEndpoint}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -215,8 +235,6 @@
           }
 
           const toolsData = await toolsResponse.json();
-          addDebugLog('INFO', 'Tools response received', toolsData);
-          
           const tools = toolsData.result?.tools || [];
           addDebugLog('SUCCESS', `Found ${tools.length} tools`, tools);
 
@@ -227,7 +245,7 @@
 
           setAvailableTools(prev => [...prev, ...tools.map(t => ({ ...t, server: name }))]);
 
-          return { success: true, toolCount: tools.length, tools };
+          return { success: true, toolCount: tools.length };
         } catch (error) {
           addDebugLog('ERROR', 'MCP connection failed', {
             message: error.message,
@@ -250,22 +268,17 @@
         setIsConnecting(false);
 
         if (result.success) {
-          setMcpServers(prev => [...prev, { 
-            name: serverName, 
-            url: serverUrl, 
-            toolCount: result.toolCount,
-            tools: result.tools 
-          }]);
+          setMcpServers(prev => [...prev, { name: serverName, url: serverUrl, toolCount: result.toolCount }]);
           
           setMessages(prev => [...prev, {
             role: 'system',
-            content: `✅ Connected to ${serverName}\nDiscovered ${result.toolCount} tools:\n${result.tools.map(t => `• ${t.name}`).join('\n')}`,
+            content: `✅ Connected to ${serverName} - Discovered ${result.toolCount} tools`,
             timestamp: new Date().toLocaleTimeString()
           }]);
         } else {
           setMessages(prev => [...prev, {
             role: 'system',
-            content: `❌ Failed to connect to ${serverName}: ${result.error}\n\nCheck the Debug logs for more details.`,
+            content: `❌ Failed to connect to ${serverName}: ${result.error}`,
             timestamp: new Date().toLocaleTimeString()
           }]);
         }
@@ -277,10 +290,9 @@
           throw new Error(`Server ${serverName} not connected`);
         }
 
-        addDebugLog('INFO', `Calling tool ${toolName} on ${serverName}`, args);
+        addDebugLog('INFO', `Calling tool ${toolName}`, args);
 
-        const fullUrl = `${session.url}${session.sessionEndpoint}`;
-        const response = await fetch(fullUrl, {
+        const response = await fetch(`${session.url}${session.sessionEndpoint}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -299,8 +311,6 @@
         });
 
         if (!response.ok) {
-          const errorText = await response.text();
-          addDebugLog('ERROR', `Tool call failed`, { status: response.status, body: errorText });
           throw new Error(`Tool call failed: ${response.status}`);
         }
 
@@ -328,7 +338,6 @@
         setIsLoading(true);
 
         try {
-          // Simple pattern matching for demo
           const amountMatch = currentInput.match(/₹?(\d+(?:\.\d+)?)/);
           const txnIdMatch = currentInput.match(/[a-f0-9]{20}/i);
 
@@ -361,7 +370,6 @@
             }
           }
 
-          // Call Claude API
           const conversationHistory = messages
             .filter(m => m.role !== 'system')
             .slice(-6)
@@ -481,20 +489,12 @@
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-700 mb-2">Connected Servers:</p>
                   {mcpServers.map((server, idx) => (
-                    <div key={idx} className="p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={idx} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                      <div>
                         <div className="font-medium text-gray-900">{server.name}</div>
-                        <CheckCircle />
+                        <div className="text-xs text-gray-500">{server.toolCount} tools available</div>
                       </div>
-                      <div className="text-xs text-gray-600 mb-1">{server.url}</div>
-                      <div className="text-xs text-green-700 font-semibold">{server.toolCount} tools available</div>
-                      {server.tools && server.tools.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-600">
-                          {server.tools.map((tool, i) => (
-                            <div key={i}>• {tool.name}</div>
-                          ))}
-                        </div>
-                      )}
+                      <CheckCircle />
                     </div>
                   ))}
                 </div>
@@ -613,8 +613,8 @@
       );
     }
 
+    // Render the app
     ReactDOM.render(<AirtelAICommerce />, document.getElementById('root'));
   </script>
 </body>
 </html>
-
