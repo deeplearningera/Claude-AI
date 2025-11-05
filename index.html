@@ -117,11 +117,16 @@
             statusText: sseResponse.statusText
           });
 
+          addDebugLog('INFO', 'Parsing response 1');
+
           if (!sseResponse.ok) {
+            addDebugLog('INFO', 'Parsing response 2');
             const errorText = await sseResponse.text();
             addDebugLog('ERROR', `SSE connection failed`, { status: sseResponse.status, body: errorText });
             throw new Error(`SSE connection failed: ${sseResponse.status} - ${errorText}`);
           }
+
+          addDebugLog('INFO', 'Parsing response 3');
 
           const text = await sseResponse.text();
           addDebugLog('INFO', 'SSE Response body received', { 
@@ -129,7 +134,7 @@
             fullText: text 
           });
 
-          addDebugLog('INFO', `Parsing response"`);
+          addDebugLog('INFO', 'Parsing response 4');
           // Parse SSE format properly
           const lines = text.split('\n');
           let sessionEndpoint = '';
