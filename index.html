@@ -2,633 +2,200 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Airtel AI - Agentic Commerce Demo</title>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>MCP Chat Interface</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #chat-container {
+      width: 90%;
+      max-width: 700px;
+      background: white;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 80vh;
+    }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    .message {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      max-width: 80%;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .user { background: #dcf8c6; align-self: flex-end; }
+    .bot { background: #f1f0f0; align-self: flex-start; }
+    #input-container {
+      display: flex;
+      padding: 12px;
+      border-top: 1px solid #ddd;
+    }
+    #user-input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-left: 8px;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #0078ff;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled { background: #999; }
+    #debug-log {
+      width: 90%;
+      max-width: 700px;
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 8px;
+      margin-top: 10px;
+      border-radius: 8px;
+      height: 150px;
+      overflow-y: auto;
+    }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
-  
-  <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
 
-    // Lucide Icons as inline SVG components
-    const Send = () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m22 2-7 20-4-9-9-4Z"/>
-        <path d="M22 2 11 13"/>
-      </svg>
-    );
+  <button id="connect-btn">Connect MCP Server</button>
 
-    const Settings = () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-    );
+  <div id="chat-container">
+    <div id="messages"></div>
+    <div id="input-container">
+      <input id="user-input" placeholder="Type a message..." />
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
 
-    const X = () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 6 6 18"/>
-        <path d="m6 6 12 12"/>
-      </svg>
-    );
+  <div id="debug-log"></div>
 
-    const CheckCircle = () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-    );
+  <script>
+    const BE_URL = "https://f05d2d98b621.ngrok-free.app"; // ✅ your backend
+    let sessionEndpoint = null;
+    let connected = false;
 
-    const Loader = () => (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
-        <line x1="12" x2="12" y1="2" y2="6"/>
-        <line x1="12" x2="12" y1="18" y2="22"/>
-        <line x1="4.93" x2="7.76" y1="4.93" y2="7.76"/>
-        <line x1="16.24" x2="19.07" y1="16.24" y2="19.07"/>
-        <line x1="2" x2="6" y1="12" y2="12"/>
-        <line x1="18" x2="22" y1="12" y2="12"/>
-        <line x1="4.93" x2="7.76" y1="19.07" y2="16.24"/>
-        <line x1="16.24" x2="19.07" y1="7.76" y2="4.93"/>
-      </svg>
-    );
+    const messagesDiv = document.getElementById('messages');
+    const logDiv = document.getElementById('debug-log');
+    const connectBtn = document.getElementById('connect-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const userInput = document.getElementById('user-input');
 
-    function AirtelAICommerce() {
-      const [showSettings, setShowSettings] = useState(true);
-      const [apiKey, setApiKey] = useState('');
-      const [serverName, setServerName] = useState('UPI');
-      const [serverUrl, setServerUrl] = useState('https://f05d2d98b621.ngrok-free.app');
-      const [mcpServers, setMcpServers] = useState([]);
-      const [messages, setMessages] = useState([
-        {
-          role: 'assistant',
-          content: "Hey! 👋 I'm Airtel AI. I'm here to help you with your recharge. What would you like today?",
-          timestamp: new Date().toLocaleTimeString()
-        }
-      ]);
-      const [inputMessage, setInputMessage] = useState('');
-      const [isLoading, setIsLoading] = useState(false);
-      const [mcpSessions, setMcpSessions] = useState({});
-      const [availableTools, setAvailableTools] = useState([]);
-      const [isConnecting, setIsConnecting] = useState(false);
-      const [debugLogs, setDebugLogs] = useState([]);
-      const [showDebug, setShowDebug] = useState(true);
-      const messagesEndRef = useRef(null);
-
-      const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      };
-
-      const addDebugLog = (level, message, data = null) => {
-        const log = {
-          level,
-          message,
-          data,
-          timestamp: new Date().toLocaleTimeString()
-        };
-        console.log(`[${level}]`, message, data);
-        setDebugLogs(prev => [...prev, log]);
-      };
-
-      useEffect(() => {
-        scrollToBottom();
-      }, [messages]);
-
-      const connectToMCPServer = async (url, name) => {
-        try {
-          addDebugLog('INFO', `Attempting to connect to MCP server: ${url}`);
-          
-          // Step 1: Get session endpoint
-          addDebugLog('INFO', 'Step 1: Fetching SSE endpoint...');
-          const sseResponse = await fetch(`${url}/sse`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'text/event-stream',
-              'ngrok-skip-browser-warning': 'true'
-            }
-          });
-
-          addDebugLog('INFO', `SSE Response status: ${sseResponse.status}`, {
-            ok: sseResponse.ok,
-            statusText: sseResponse.statusText
-          });
-
-          addDebugLog('INFO', `SSE Response status 2: ${sseResponse.status}`, {
-            ok: sseResponse.ok,
-            statusText: sseResponse.statusText
-          });
-
-          if (!sseResponse.ok) {
-            addDebugLog('INFO', 'Parsing response 2');
-            const errorText = await sseResponse.text();
-            addDebugLog('ERROR', `SSE connection failed`, { status: sseResponse.status, body: errorText });
-            throw new Error(`SSE connection failed: ${sseResponse.status} - ${errorText}`);
-          }
-
-          addDebugLog('INFO', `SSE Response status 3: ${sseResponse.status}`, {
-            ok: sseResponse.ok,
-            statusText: sseResponse.statusText
-          });
-
-          const text = await sseResponse.text();
-          addDebugLog('INFO', 'SSE Response body received', { 
-            bodyLength: text.length, 
-            fullText: text 
-          });
-
-          addDebugLog('INFO', `SSE Response status 4: ${sseResponse.status}`, {
-            ok: sseResponse.ok,
-            statusText: sseResponse.statusText
-          });
-          // Parse SSE format properly
-          const lines = text.split('\n');
-          let sessionEndpoint = '';
-
-          for (const line of lines) {
-            const trimmedLine = line.trim();
-            addDebugLog('INFO', `Processing line: "${trimmedLine}"`);
-            
-            if (trimmedLine.startsWith('data:')) {
-              // Extract everything after "data:" and trim whitespace
-              sessionEndpoint = trimmedLine.slice(5).trimStart().trim();
-              addDebugLog('SUCCESS', `Found session endpoint: "${sessionEndpoint}"`);
-              break;
-            }
-          }
-
-          if (!sessionEndpoint) {
-            addDebugLog('ERROR', 'No session endpoint in SSE response', { 
-              fullResponse: text,
-              lines: lines 
-            });
-            throw new Error('No session endpoint received from server');
-          }
-
-          addDebugLog('SUCCESS', `Session endpoint obtained: ${sessionEndpoint}`);
-
-          // Step 2: Initialize connection
-          const fullSessionUrl = `${url}${sessionEndpoint}`;
-          addDebugLog('INFO', `Step 2: Initializing MCP connection at ${fullSessionUrl}`);
-          
-          const initResponse = await fetch(fullSessionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'ngrok-skip-browser-warning': 'true'
-            },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 1,
-              method: 'initialize',
-              params: {
-                protocolVersion: '2024-11-05',
-                capabilities: {},
-                clientInfo: { name: 'airtel-ai', version: '1.0.0' }
-              }
-            })
-          });
-
-          addDebugLog('INFO', `Init response status: ${initResponse.status}`);
-
-          if (!initResponse.ok) {
-            const errorText = await initResponse.text();
-            addDebugLog('ERROR', 'Initialization failed', { status: initResponse.status, body: errorText });
-            throw new Error(`Initialization failed: ${initResponse.status} - ${errorText}`);
-          }
-
-          const initData = await initResponse.json();
-          addDebugLog('SUCCESS', 'MCP initialized successfully', initData);
-
-          // Step 3: List available tools
-          addDebugLog('INFO', 'Step 3: Fetching available tools...');
-          const toolsResponse = await fetch(fullSessionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'ngrok-skip-browser-warning': 'true'
-            },
-            body: JSON.stringify({
-              jsonrpc: '2.0',
-              id: 2,
-              method: 'tools/list',
-              params: {}
-            })
-          });
-
-          addDebugLog('INFO', `Tools list response status: ${toolsResponse.status}`);
-
-          if (!toolsResponse.ok) {
-            const errorText = await toolsResponse.text();
-            addDebugLog('ERROR', 'Tools list failed', { status: toolsResponse.status, body: errorText });
-            throw new Error(`Tools list failed: ${toolsResponse.status} - ${errorText}`);
-          }
-
-          const toolsData = await toolsResponse.json();
-          addDebugLog('INFO', 'Tools response received', toolsData);
-          
-          const tools = toolsData.result?.tools || [];
-          addDebugLog('SUCCESS', `Found ${tools.length} tools`, tools);
-
-          setMcpSessions(prev => ({
-            ...prev,
-            [name]: { url, sessionEndpoint, tools }
-          }));
-
-          setAvailableTools(prev => [...prev, ...tools.map(t => ({ ...t, server: name }))]);
-
-          return { success: true, toolCount: tools.length, tools };
-        } catch (error) {
-          addDebugLog('ERROR', 'MCP connection failed', {
-            message: error.message,
-            stack: error.stack
-          });
-          return { success: false, error: error.message };
-        }
-      };
-
-      const handleAddServer = async (e) => {
-        e.preventDefault();
-        
-        if (!serverName || !serverUrl) {
-          alert('Please provide both server name and URL');
-          return;
-        }
-
-        setIsConnecting(true);
-        const result = await connectToMCPServer(serverUrl, serverName);
-        setIsConnecting(false);
-
-        if (result.success) {
-          setMcpServers(prev => [...prev, { 
-            name: serverName, 
-            url: serverUrl, 
-            toolCount: result.toolCount,
-            tools: result.tools 
-          }]);
-          
-          setMessages(prev => [...prev, {
-            role: 'system',
-            content: `✅ Connected to ${serverName}\nDiscovered ${result.toolCount} tools:\n${result.tools.map(t => `• ${t.name}`).join('\n')}`,
-            timestamp: new Date().toLocaleTimeString()
-          }]);
-        } else {
-          setMessages(prev => [...prev, {
-            role: 'system',
-            content: `❌ Failed to connect to ${serverName}: ${result.error}\n\nCheck the Debug logs for more details.`,
-            timestamp: new Date().toLocaleTimeString()
-          }]);
-        }
-      };
-
-      const callMCPTool = async (serverName, toolName, args) => {
-        const session = mcpSessions[serverName];
-        if (!session) {
-          throw new Error(`Server ${serverName} not connected`);
-        }
-
-        addDebugLog('INFO', `Calling tool ${toolName} on ${serverName}`, args);
-
-        const fullUrl = `${session.url}${session.sessionEndpoint}`;
-        const response = await fetch(fullUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: Date.now(),
-            method: 'tools/call',
-            params: {
-              name: toolName,
-              arguments: args
-            }
-          })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          addDebugLog('ERROR', `Tool call failed`, { status: response.status, body: errorText });
-          throw new Error(`Tool call failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        addDebugLog('SUCCESS', 'Tool called successfully', data);
-        return data.result;
-      };
-
-      const sendMessage = async () => {
-        if (!inputMessage.trim() || isLoading) return;
-        if (!apiKey) {
-          alert('Please configure your Claude API key in settings');
-          return;
-        }
-
-        const userMessage = {
-          role: 'user',
-          content: inputMessage,
-          timestamp: new Date().toLocaleTimeString()
-        };
-
-        const currentInput = inputMessage;
-        setMessages(prev => [...prev, userMessage]);
-        setInputMessage('');
-        setIsLoading(true);
-
-        try {
-          // Simple pattern matching for demo
-          const amountMatch = currentInput.match(/₹?(\d+(?:\.\d+)?)/);
-          const txnIdMatch = currentInput.match(/[a-f0-9]{20}/i);
-
-          let toolCallMessage = '';
-
-          if (amountMatch && availableTools.some(t => t.name === 'initiate_upi_payment')) {
-            try {
-              const result = await callMCPTool('UPI', 'initiate_upi_payment', {
-                amount: parseFloat(amountMatch[1]),
-                mode: 'INTENT'
-              });
-              
-              const resultText = result.content?.[0]?.text || JSON.stringify(result);
-              toolCallMessage = `\n\n💳 Payment initiated for ₹${amountMatch[1]}\nResult: ${resultText}`;
-            } catch (error) {
-              toolCallMessage = `\n\n❌ Error initiating payment: ${error.message}`;
-            }
-          }
-
-          if (txnIdMatch && availableTools.some(t => t.name === 'verify_upi_payment')) {
-            try {
-              const result = await callMCPTool('UPI', 'verify_upi_payment', {
-                txnId: txnIdMatch[0]
-              });
-              
-              const resultText = result.content?.[0]?.text || JSON.stringify(result);
-              toolCallMessage += `\n\n🔍 Payment status for ${txnIdMatch[0]}\nResult: ${resultText}`;
-            } catch (error) {
-              toolCallMessage += `\n\n❌ Error verifying payment: ${error.message}`;
-            }
-          }
-
-          // Call Claude API
-          const conversationHistory = messages
-            .filter(m => m.role !== 'system')
-            .slice(-6)
-            .map(m => ({ role: m.role, content: m.content }));
-
-          const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-              model: 'claude-sonnet-4-20250514',
-              max_tokens: 512,
-              messages: [
-                ...conversationHistory,
-                { role: 'user', content: currentInput + (toolCallMessage ? `\n\nTool execution result: ${toolCallMessage}` : '') }
-              ],
-              system: 'You are Airtel AI, a helpful assistant for recharges and payments. Keep responses brief and friendly. If tool results are provided, acknowledge them naturally.'
-            })
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `API Error: ${response.status}`);
-          }
-
-          const data = await response.json();
-          let assistantResponse = data.content[0].text;
-
-          if (toolCallMessage) {
-            assistantResponse += toolCallMessage;
-          }
-
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: assistantResponse,
-            timestamp: new Date().toLocaleTimeString()
-          }]);
-        } catch (error) {
-          console.error('Error:', error);
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: `Sorry, I encountered an error: ${error.message}`,
-            timestamp: new Date().toLocaleTimeString()
-          }]);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      return (
-        <div className="flex h-screen bg-gray-50">
-          {showSettings && (
-            <div className="w-96 bg-white border-r border-gray-200 p-6 overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-red-600">Setup</h2>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setShowDebug(!showDebug)} 
-                    className={`px-3 py-1 text-xs rounded ${showDebug ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
-                  >
-                    Debug {showDebug ? 'ON' : 'OFF'}
-                  </button>
-                  <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-700">
-                    <X />
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Claude API Key</label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-ant-..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-500 mt-1">Get from your Anthropic account</p>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">MCP Servers</label>
-                <input
-                  type="text"
-                  value={serverName}
-                  onChange={(e) => setServerName(e.target.value)}
-                  placeholder="Server name (e.g., UPI)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-                <input
-                  type="text"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  placeholder="https://your-mcp-server.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-                <button
-                  onClick={handleAddServer}
-                  disabled={isConnecting}
-                  className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 flex items-center justify-center"
-                >
-                  {isConnecting ? (
-                    <>
-                      <Loader />
-                      <span className="ml-2">Connecting...</span>
-                    </>
-                  ) : (
-                    'Add MCP Server'
-                  )}
-                </button>
-              </div>
-
-              {mcpServers.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Connected Servers:</p>
-                  {mcpServers.map((server, idx) => (
-                    <div key={idx} className="p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="font-medium text-gray-900">{server.name}</div>
-                        <CheckCircle />
-                      </div>
-                      <div className="text-xs text-gray-600 mb-1">{server.url}</div>
-                      <div className="text-xs text-green-700 font-semibold">{server.toolCount} tools available</div>
-                      {server.tools && server.tools.length > 0 && (
-                        <div className="mt-2 text-xs text-gray-600">
-                          {server.tools.map((tool, i) => (
-                            <div key={i}>• {tool.name}</div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {showDebug && (
-                <div className="mt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-700">Debug Logs:</p>
-                    <button 
-                      onClick={() => setDebugLogs([])}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div className="bg-gray-900 text-gray-100 p-3 rounded-lg max-h-96 overflow-y-auto text-xs font-mono">
-                    {debugLogs.length === 0 ? (
-                      <div className="text-gray-500">No logs yet...</div>
-                    ) : (
-                      debugLogs.map((log, idx) => (
-                        <div key={idx} className="mb-2 pb-2 border-b border-gray-700">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className={`px-2 py-0.5 rounded text-xs ${
-                              log.level === 'ERROR' ? 'bg-red-600' :
-                              log.level === 'SUCCESS' ? 'bg-green-600' :
-                              log.level === 'INFO' ? 'bg-blue-600' :
-                              'bg-gray-600'
-                            }`}>
-                              {log.level}
-                            </span>
-                            <span className="text-gray-400">{log.timestamp}</span>
-                          </div>
-                          <div className="text-white mb-1">{log.message}</div>
-                          {log.data && (
-                            <details className="mt-1">
-                              <summary className="text-gray-400 cursor-pointer hover:text-gray-300">
-                                View data
-                              </summary>
-                              <pre className="mt-1 text-xs text-gray-300 overflow-x-auto">
-                                {JSON.stringify(log.data, null, 2)}
-                              </pre>
-                            </details>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex-1 flex flex-col">
-            <div className="bg-red-600 text-white p-4 flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">Airtel AI</h1>
-                <p className="text-sm opacity-90">Agentic Commerce Demo</p>
-              </div>
-              <button onClick={() => setShowSettings(!showSettings)} className="p-2 hover:bg-red-700 rounded-lg">
-                <Settings />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[70%] ${
-                    msg.role === 'user' 
-                      ? 'bg-red-600 text-white' 
-                      : msg.role === 'system'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-white text-gray-800 border border-gray-200'
-                  } rounded-lg p-4 shadow-sm`}>
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                    <div className={`text-xs mt-2 ${
-                      msg.role === 'user' ? 'text-red-100' : 'text-gray-500'
-                    }`}>
-                      {msg.timestamp}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                    <Loader />
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="p-4 bg-white border-t border-gray-200">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Tell me what you need..."
-                  disabled={isLoading}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={isLoading || !inputMessage.trim()}
-                  className="bg-red-600 text-white p-3 rounded-full hover:bg-red-700 transition-colors disabled:bg-gray-400"
-                >
-                  <Send />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+    function addMessage(sender, text) {
+      const div = document.createElement('div');
+      div.classList.add('message', sender);
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    ReactDOM.render(<AirtelAICommerce />, document.getElementById('root'));
+    function addDebug(level, msg, obj = null) {
+      const time = new Date().toLocaleTimeString();
+      logDiv.textContent += `[${time}] [${level}] ${msg}\n`;
+      if (obj) logDiv.textContent += JSON.stringify(obj, null, 2) + "\n";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // 🔹 Step 1: Connect MCP Server via SSE
+    connectBtn.onclick = () => {
+      connectBtn.disabled = true;
+      addDebug("INFO", "Connecting to MCP SSE...");
+      const eventSource = new EventSource(`${BE_URL}/sse`);
+
+      eventSource.onopen = () => addDebug("SUCCESS", "SSE connection established");
+
+      eventSource.onerror = (err) => {
+        addDebug("ERROR", "SSE error", err);
+        connectBtn.disabled = false;
+        eventSource.close();
+      };
+
+      // Handle incoming SSE messages from backend
+      eventSource.onmessage = async (event) => {
+        addDebug("INFO", "SSE message received", { data: event.data });
+
+        // Expecting something like: event: endpoint\ndata: /messages/?session_id=xxxx
+        if (event.data.includes("session_id")) {
+          sessionEndpoint = event.data.trim();
+          connected = true;
+          addDebug("SUCCESS", `Session ID received: ${sessionEndpoint}`);
+          addMessage("bot", "✅ Connected to MCP Server.\nYou can now chat.");
+        } else if (event.data.startsWith(": ping")) {
+          // keep connection alive
+          addDebug("DEBUG", "Ping received");
+        } else {
+          addMessage("bot", event.data);
+        }
+      };
+    };
+
+    // 🔹 Step 2: Handle User Message
+    sendBtn.onclick = async () => {
+      const text = userInput.value.trim();
+      if (!text) return;
+      addMessage("user", text);
+      userInput.value = "";
+
+      if (!connected) {
+        addMessage("bot", "⚠️ Not connected yet. Click 'Connect MCP Server' first.");
+        return;
+      }
+
+      // 🔹 Step 3: Decide backend route based on user intent
+      let endpoint = "/anthropic";
+      if (text.toLowerCase().includes("initiate payment")) endpoint = "/initiate-payment";
+      else if (text.toLowerCase().includes("verify payment")) endpoint = "/verify-payment";
+
+      addDebug("INFO", `Calling backend: ${endpoint}`);
+
+      try {
+        const res = await fetch(`${BE_URL}${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: text, session: sessionEndpoint })
+        });
+
+        // Support SSE-style streaming replies
+        if (res.headers.get("content-type")?.includes("text/event-stream")) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let partial = "";
+          addMessage("bot", "🤖 ");
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            partial += chunk;
+            messagesDiv.lastChild.textContent = "🤖 " + partial;
+          }
+        } else {
+          const data = await res.json();
+          addMessage("bot", data.reply || JSON.stringify(data, null, 2));
+        }
+      } catch (err) {
+        addDebug("ERROR", "Backend call failed", { message: err.message });
+        addMessage("bot", "❌ Error contacting backend.");
+      }
+    };
   </script>
 </body>
 </html>
