@@ -139,7 +139,7 @@
             
             if (trimmedLine.startsWith('data:')) {
               // Extract everything after "data:" and trim whitespace
-              sessionEndpoint = trimmedLine.substring(5).trimStart();
+              sessionEndpoint = trimmedLine.slice(5).trimStart();
               addDebugLog('SUCCESS', `Found session endpoint: "${sessionEndpoint}"`);
               break;
             }
