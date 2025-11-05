@@ -98,120 +98,85 @@
         scrollToBottom();
       }, [messages]);
 
-      addDebugLog('INFO', 'Step 1: Opening SSE connection...');
-const eventSource = new EventSource(`${url}/sse`, {
-  withCredentials: false
-});
-
-return new Promise((resolve, reject) => {
-  let sessionEndpoint = null;
-
-  eventSource.onopen = () => {
-    addDebugLog('INFO', 'SSE connection established successfully');
-  };
-
-  eventSource.onerror = (err) => {
-    addDebugLog('ERROR', 'SSE connection error', err);
-    eventSource.close();
-    reject(new Error('SSE connection failed'));
-  };
-
-  eventSource.onmessage = async (event) => {
-    addDebugLog('INFO', 'SSE message received', { data: event.data });
-
-    try {
-      // Example: data: {"session":"12345"}
-      const parsed = event.data.trim();
-
-      if (parsed) {
-        sessionEndpoint = parsed.startsWith('/')
-          ? parsed
-          : `/${parsed}`;
-
-        addDebugLog('SUCCESS', `Session endpoint received: ${sessionEndpoint}`);
-
-        // Immediately proceed with initialization
-        const fullSessionUrl = `${url}${sessionEndpoint}`;
-
-        // Step 2: Initialize connection
-        addDebugLog('INFO', `Step 2: Initializing MCP connection at ${fullSessionUrl}`);
-        const initResponse = await fetch(fullSessionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'initialize',
-            params: {
-              protocolVersion: '2024-11-05',
-              capabilities: {},
-              clientInfo: { name: 'airtel-ai', version: '1.0.0' }
+      const connectToMCPServer = async (url, name) => {
+        try {
+          addDebugLog('INFO', `Attempting to connect to MCP server: ${url}`);
+          
+          // Step 1: Get session endpoint
+          addDebugLog('INFO', 'Step 1: Fetching SSE endpoint...');
+          const sseResponse = await fetch(`${url}/sse`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'text/event-stream',
+              'ngrok-skip-browser-warning': 'true'
             }
-          })
-        });
+          });
 
-        if (!initResponse.ok) {
-          const errorText = await initResponse.text();
-          addDebugLog('ERROR', 'Initialization failed', { status: initResponse.status, body: errorText });
-          eventSource.close();
-          reject(new Error(`Initialization failed: ${initResponse.status} - ${errorText}`));
-          return;
-        }
+          addDebugLog('INFO', `SSE Response status: ${sseResponse.status}`, {
+            ok: sseResponse.ok,
+            statusText: sseResponse.statusText
+          });
 
-        const initData = await initResponse.json();
-        addDebugLog('SUCCESS', 'MCP initialized successfully', initData);
+          if (!sseResponse.ok) {
+            const errorText = await sseResponse.text();
+            addDebugLog('ERROR', `SSE connection failed`, { status: sseResponse.status, body: errorText });
+            throw new Error(`SSE connection failed: ${sseResponse.status} - ${errorText}`);
+          }
 
-        // Step 3: List available tools
-        addDebugLog('INFO', 'Step 3: Fetching available tools...');
-        const toolsResponse = await fetch(fullSessionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 2,
-            method: 'tools/list',
-            params: {}
-          })
-        });
+          const text = await sseResponse.text();
+          addDebugLog('INFO', 'SSE Response body received', { 
+            bodyLength: text.length, 
+            fullText: text 
+          });
+          
+          // Parse SSE format properly
+          const lines = text.split('\n');
+          let sessionEndpoint = '';
 
-        if (!toolsResponse.ok) {
-          const errorText = await toolsResponse.text();
-          addDebugLog('ERROR', 'Tools list failed', { status: toolsResponse.status, body: errorText });
-          eventSource.close();
-          reject(new Error(`Tools list failed: ${toolsResponse.status} - ${errorText}`));
-          return;
-        }
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            addDebugLog('DEBUG', `Processing line: "${trimmedLine}"`);
+            
+            if (trimmedLine.startsWith('data:')) {
+              // Extract everything after "data:" and trim whitespace
+              sessionEndpoint = trimmedLine.substring(5).trimStart();
+              addDebugLog('SUCCESS', `Found session endpoint: "${sessionEndpoint}"`);
+              break;
+            }
+          }
 
-        const toolsData = await toolsResponse.json();
-        addDebugLog('SUCCESS', 'Tools listed successfully', toolsData);
+          if (!sessionEndpoint) {
+            addDebugLog('ERROR', 'No session endpoint in SSE response', { 
+              fullResponse: text,
+              lines: lines 
+            });
+            throw new Error('No session endpoint received from server');
+          }
 
-        const tools = toolsData.result?.tools || [];
+          addDebugLog('SUCCESS', `Session endpoint obtained: ${sessionEndpoint}`);
 
-        // Store and resolve
-        setMcpSessions(prev => ({
-          ...prev,
-          [name]: { url, sessionEndpoint, tools }
-        }));
-
-        setAvailableTools(prev => [...prev, ...tools.map(t => ({ ...t, server: name }))]);
-
-        addDebugLog('SUCCESS', `Connected to ${name} with ${tools.length} tools`);
-        eventSource.close();
-        resolve({ success: true, toolCount: tools.length, tools });
-      }
-    } catch (err) {
-      addDebugLog('ERROR', 'Failed to parse SSE message', { message: err.message });
-    }
-  };
-});
+          // Step 2: Initialize connection
+          const fullSessionUrl = `${url}${sessionEndpoint}`;
+          addDebugLog('INFO', `Step 2: Initializing MCP connection at ${fullSessionUrl}`);
+          
+          const initResponse = await fetch(fullSessionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              method: 'initialize',
+              params: {
+                protocolVersion: '2024-11-05',
+                capabilities: {},
+                clientInfo: { name: 'airtel-ai', version: '1.0.0' }
+              }
+            })
+          });
 
           addDebugLog('INFO', `Init response status: ${initResponse.status}`);
 
