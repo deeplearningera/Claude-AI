@@ -128,14 +128,15 @@
             bodyLength: text.length, 
             fullText: text 
           });
-          
+
+          addDebugLog('INFO', `Parsing response"`);
           // Parse SSE format properly
           const lines = text.split('\n');
           let sessionEndpoint = '';
 
           for (const line of lines) {
             const trimmedLine = line.trim();
-            addDebugLog('DEBUG', `Processing line: "${trimmedLine}"`);
+            addDebugLog('INFO', `Processing line: "${trimmedLine}"`);
             
             if (trimmedLine.startsWith('data:')) {
               // Extract everything after "data:" and trim whitespace
